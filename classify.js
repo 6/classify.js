@@ -32,55 +32,55 @@
     this.trainCount = 0;
     this.setData({
       featureCounts: {},
-      categoryCounts: {},
-      featuresInCategoryCounts: {}
+      labelCounts: {},
+      featuresInLabelCounts: {}
     });
   };
 
-  Classifier.prototype.train = function(features, category) {
+  Classifier.prototype.train = function(features, label) {
     if(!isArray(features)) features = [features];
     for(var i = 0; i < features.length; i++) {
       var feature = features[i];
       this.__incrementCount('featureCounts', feature.toString());
-      this.__incrementCount('featuresInCategoryCounts', feature.toString() + category.toString());
+      this.__incrementCount('featuresInLabelCounts', feature.toString() + label.toString());
     }
-    this.__incrementCount('categoryCounts', category.toString(), features.length);
+    this.__incrementCount('labelCounts', label.toString(), features.length);
     this.trainCount += features.length;
   };
 
   Classifier.prototype.classify = function(features) {
     if(!isArray(features)) features = [features];
-    var scoresByCategory = {},
-        categories = this.__categories();
-    for(var i = 0; i < categories.length; i++) {
-      var category = categories[i];
+    var scoresByLabel = {},
+        labels = this.__labels();
+    for(var i = 0; i < labels.length; i++) {
+      var label = labels[i];
       var scores = [];
       for(var j = 0; j < features.length; j++) {
         var feature = features[j];
-        var score = this.__probability(feature, category);
+        var score = this.__probability(feature, label);
         if (isNumber(score) && score > 0) {
           scores.push(score);
         }
       }
       if (scores.length > 0) {
-        scoresByCategory[category] = reduce(scores, function(a, b) {
+        scoresByLabel[label] = reduce(scores, function(a, b) {
           return a * b;
         });
       }
       else {
-        scoresByCategory[category] = 0;
+        scoresByLabel[label] = 0;
       }
     }
-    return scoresByCategory;
+    return scoresByLabel;
   };
 
-  Classifier.prototype.__probability = function(feature, category) {
-    var categoryCount = this.__categoryCount(category),
+  Classifier.prototype.__probability = function(feature, label) {
+    var labelCount = this.__labelCount(label),
         featureCount = this.__featureCount(feature),
-        featuresInCategoryCount = this.__featuresInCategoryCount(feature, category);
+        featuresInLabelCount = this.__featuresInLabelCount(feature, label);
 
-    return (featuresInCategoryCount / categoryCount) *
-           (categoryCount / this.trainCount) /
+    return (featuresInLabelCount / labelCount) *
+           (labelCount / this.trainCount) /
            (featureCount / this.trainCount);
   };
 
@@ -96,16 +96,16 @@
     return this.getData().featureCounts[feature.toString()] || 0;
   };
 
-  Classifier.prototype.__categoryCount = function(category) {
-    return this.getData().categoryCounts[category.toString()] || 0;
+  Classifier.prototype.__labelCount = function(label) {
+    return this.getData().labelCounts[label.toString()] || 0;
   };
 
-  Classifier.prototype.__featuresInCategoryCount = function(feature, category) {
-    return this.getData().featuresInCategoryCounts[feature.toString()+category.toString()] || 0;
+  Classifier.prototype.__featuresInLabelCount = function(feature, label) {
+    return this.getData().featuresInLabelCounts[feature.toString()+label.toString()] || 0;
   };
 
-  Classifier.prototype.__categories = function() {
-    return Object.keys(this.getData().categoryCounts);
+  Classifier.prototype.__labels = function() {
+    return Object.keys(this.getData().labelCounts);
   };
 
   // Override if using custom storage
