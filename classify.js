@@ -1,10 +1,8 @@
 (function(global) {
-  var isNumber = function(obj) {
-    return !isNaN(parseFloat(obj)) && isFinite(obj);
-  };
-
-  var isArray = function(obj) {
-    return toString.call(obj) === '[object Array]';
+  var each = function(arr, iterator, context) {
+    for(var i = 0; i < arr.length; i++) {
+      iterator.call(context, arr[i], i);
+    }
   };
 
   var reduce = function(arr, iterator, memo, context) {
@@ -21,104 +19,63 @@
     return memo;
   };
 
-  var Classifier = function(options) {
-    options = options || {};
-    this.storage = options.storage || window.localStorage;
-    this.storageKey = options.storageKey || 'classify.js';
+  var Classifier = function() {
     this.reset();
   };
 
   Classifier.prototype.reset = function() {
-    this.trainCount = 0;
-    this.setData({
-      featureCounts: {},
-      labelCounts: {},
-      featuresInLabelCounts: {}
-    });
+    this.featureCounts = {};
+    this.labelCounts = {};
   };
 
   Classifier.prototype.train = function(features, label) {
-    if(!isArray(features)) features = [features];
-    for(var i = 0; i < features.length; i++) {
-      var feature = features[i];
-      this.__incrementCount('featureCounts', feature.toString());
-      this.__incrementCount('featuresInLabelCounts', feature.toString() + label.toString());
-    }
-    this.__incrementCount('labelCounts', label.toString(), features.length);
-    this.trainCount += features.length;
+    each(features, function(feature) {
+      this.featureCounts[label] = this.featureCounts[label] || {};
+      var featureCount = this.featureCounts[label][feature] || 0;
+      this.featureCounts[label][feature] = featureCount + 1;
+    }, this);
+    this.labelCounts[label] = (this.labelCounts[label] || 0) + 1;
   };
 
   Classifier.prototype.classify = function(features) {
-    if(!isArray(features)) features = [features];
-    var scoresByLabel = {},
-        labels = this.__labels();
-    for(var i = 0; i < labels.length; i++) {
-      var label = labels[i];
-      var scores = [];
-      for(var j = 0; j < features.length; j++) {
-        var feature = features[j];
-        var score = this.__probability(feature, label);
-        if (isNumber(score) && score > 0) {
-          scores.push(score);
-        }
-      }
-      if (scores.length > 0) {
-        scoresByLabel[label] = reduce(scores, function(a, b) {
-          return a * b;
-        });
-      }
-      else {
-        scoresByLabel[label] = 0;
-      }
-    }
-    return scoresByLabel;
-  };
-
-  Classifier.prototype.__probability = function(feature, label) {
-    var labelCount = this.__labelCount(label),
-        featureCount = this.__featureCount(feature),
-        featuresInLabelCount = this.__featuresInLabelCount(feature, label);
-
-    return (featuresInLabelCount / labelCount) *
-           (labelCount / this.trainCount) /
-           (featureCount / this.trainCount);
-  };
-
-  Classifier.prototype.__incrementCount = function(countType, key, incrementAmount) {
-    incrementAmount = incrementAmount || 1;
-    var data = this.getData();
-    var currentCount = data[countType][key] || 0;
-    data[countType][key] = currentCount + incrementAmount;
-    this.setData(data);
-  };
-
-  Classifier.prototype.__featureCount = function(feature) {
-    return this.getData().featureCounts[feature.toString()] || 0;
-  };
-
-  Classifier.prototype.__labelCount = function(label) {
-    return this.getData().labelCounts[label.toString()] || 0;
-  };
-
-  Classifier.prototype.__featuresInLabelCount = function(feature, label) {
-    return this.getData().featuresInLabelCounts[feature.toString()+label.toString()] || 0;
+    var scores = {};
+    each(this.__labels(), function(label) {
+      // P(Label | Features) = P(Features | Label) * P(Label)
+      scores[label] = this.__probabilityOfFeaturesGivenLabel(features, label) * this.__probabilityOfLabel(label);
+    }, this);
+    return scores;
   };
 
   Classifier.prototype.__labels = function() {
-    return Object.keys(this.getData().labelCounts);
+    return Object.keys(this.labelCounts);
   };
 
-  // Override if using custom storage
-  Classifier.prototype.getData = function() {
-    return JSON.parse(this.storage.getItem(this.storageKey));
+  // P(Features | Label)
+  Classifier.prototype.__probabilityOfFeaturesGivenLabel = function(features, label) {
+    return reduce(features, function(sum, feature) {
+      return sum * this.__probabilityOfFeatureGivenLabel(feature, label);
+    }, 1, this);
   };
 
-  Classifier.prototype.setData = function(modifiedAttributes) {
-    var data = this.getData() || {};
-    for(var key in modifiedAttributes) {
-      data[key] = modifiedAttributes[key];
+  // P(Feature | Label)
+  Classifier.prototype.__probabilityOfFeatureGivenLabel = function(feature, label) {
+    if((this.featureCounts[label][feature] || 0) === 0) {
+      return this.__assumedProbability();
     }
-    return this.storage.setItem(this.storageKey, JSON.stringify(data));
+    return this.featureCounts[label][feature] / this.labelCounts[label];
+  };
+
+  // P(Label)
+  Classifier.prototype.__probabilityOfLabel = function(label) {
+    return this.labelCounts[label] / this.__totalFeatures();
+  };
+
+  Classifier.prototype.__totalFeatures = function() {
+    return this.__labels().length; //TODO- check
+  };
+
+  Classifier.prototype.__assumedProbability = function() {
+    return 0.5 / (this.__totalFeatures() / 2);
   };
 
   global.Classifier = Classifier;
