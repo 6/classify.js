@@ -52,8 +52,8 @@
 
   // P(Features | Label)
   Classifier.prototype.__probabilityOfFeaturesGivenLabel = function(features, label) {
-    return reduce(features, function(sum, feature) {
-      return sum * this.__probabilityOfFeatureGivenLabel(feature, label);
+    return reduce(features, function(product, feature) {
+      return product * this.__probabilityOfFeatureGivenLabel(feature, label);
     }, 1, this);
   };
 
