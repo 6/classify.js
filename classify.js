@@ -3,6 +3,10 @@
     return !isNaN(parseFloat(obj)) && isFinite(obj);
   };
 
+  var isArray = function(obj) {
+    return toString.call(obj) === '[object Array]';
+  };
+
   var reduce = function(arr, iterator, memo, context) {
     var initial = arguments.length > 2;
     for(var i = 0; i < arr.length; i++) {
@@ -34,6 +38,7 @@
   };
 
   Classifier.prototype.train = function(features, category) {
+    if(!isArray(features)) features = [features];
     for(var i = 0; i < features.length; i++) {
       var feature = features[i];
       this.__incrementCount('featureCounts', feature.toString());
@@ -44,6 +49,7 @@
   };
 
   Classifier.prototype.classify = function(features) {
+    if(!isArray(features)) features = [features];
     var scoresByCategory = {},
         categories = this.__categories();
     for(var i = 0; i < categories.length; i++) {
