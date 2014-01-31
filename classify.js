@@ -46,6 +46,7 @@
   Classifier.prototype.reset = function() {
     this.featureCounts = {};
     this.labelCounts = {};
+    this.trainCount = 0;
   };
 
   Classifier.prototype.train = function(features, label) {
@@ -55,6 +56,7 @@
       this.featureCounts[label][feature] = featureCount + 1;
     }, this);
     this.labelCounts[label] = (this.labelCounts[label] || 0) + 1;
+    this.trainCount += 1;
   };
 
   Classifier.prototype.classify = function(features) {
@@ -87,17 +89,11 @@
 
   // P(Label)
   Classifier.prototype.__probabilityOfLabel = function(label) {
-    return this.labelCounts[label] / this.__totalFeatures();
-  };
-
-  Classifier.prototype.__totalFeatures = function() {
-    return reduce(this.labelCounts, function(sum, labelCount) {
-      return sum + labelCount;
-    });
+    return this.labelCounts[label] / this.trainCount;
   };
 
   Classifier.prototype.__assumedProbability = function() {
-    return 0.5 / (this.__totalFeatures() / 2);
+    return 0.5 / (this.trainCount / 2);
   };
 
   global.Classifier = Classifier;
