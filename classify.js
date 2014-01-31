@@ -1,21 +1,41 @@
 (function(global) {
-  var each = function(arr, iterator, context) {
-    for(var i = 0; i < arr.length; i++) {
-      iterator.call(context, arr[i], i);
+  var isArray = Array.isArray || function(obj) {
+    return toString.call(obj) === '[object Array]';
+  };
+
+  var objectKeys = Object.keys || function(obj) {
+    var keys = [];
+    for (var key in obj) {
+      keys.push(key);
+    }
+    return keys;
+  };
+
+  var each = function(obj, iterator, context) {
+    if (isArray(obj)) {
+      for(var i = 0; i < obj.length; i++) {
+        iterator.call(context, obj[i], i);
+      }
+    }
+    else {
+      var keys = objectKeys(obj);
+      for(var i = 0; i < keys.length; i++) {
+        iterator.call(context, obj[keys[i]], keys[i]);
+      }
     }
   };
 
-  var reduce = function(arr, iterator, memo, context) {
+  var reduce = function(obj, iterator, memo, context) {
     var initial = arguments.length > 2;
-    for(var i = 0; i < arr.length; i++) {
+    each(obj, function(value, i) {
       if (!initial) {
-        memo = arr[i];
+        memo = value;
         initial = true;
       }
       else {
-        memo = iterator.call(context, memo, arr[i], i, arr);
+        memo = iterator.call(context, memo, value, i);
       }
-    }
+    });
     return memo;
   };
 
@@ -47,7 +67,7 @@
   };
 
   Classifier.prototype.__labels = function() {
-    return Object.keys(this.labelCounts);
+    return objectKeys(this.labelCounts);
   };
 
   // P(Features | Label)
@@ -71,7 +91,9 @@
   };
 
   Classifier.prototype.__totalFeatures = function() {
-    return this.__labels().length; //TODO- check
+    return reduce(this.labelCounts, function(sum, labelCount) {
+      return sum + labelCount;
+    });
   };
 
   Classifier.prototype.__assumedProbability = function() {
