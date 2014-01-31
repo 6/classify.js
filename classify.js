@@ -108,11 +108,11 @@
   };
 
   Classifier.prototype.setData = function(modifiedAttributes) {
-    var data = this.getData();
+    var data = this.getData() || {};
     for(var key in modifiedAttributes) {
       data[key] = modifiedAttributes[key];
     }
-    return this.storage.setItem(JSON.stringify(data));
+    return this.storage.setItem(this.storageKey, JSON.stringify(data));
   };
 
   global.Classifier = Classifier;
